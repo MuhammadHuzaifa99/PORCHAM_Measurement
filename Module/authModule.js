@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs/dist/bcrypt");
 const mongoose = require("mongoose");
+const crypto = require("crypto");
 
 const userSchema = new mongoose.Schema({
   Username: {
@@ -30,10 +31,25 @@ const userSchema = new mongoose.Schema({
       message: "password does not match",
     },
   },
+  passwordResetToken: String,
+  passwordResetTokenExpiresAt: Date,
 });
 
 userSchema.methods.passwordVerification = async (password, encryptedPass) => {
   return await bcrypt.compare(password, encryptedPass);
+};
+
+userSchema.methods.passwordResetTokenGenerator = async function () {
+  const resetToken = await crypto.randomBytes(32).toString("hex");
+  const encryptedresetToken = await crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+  // console.log(resetToken);
+  // console.log(encryptedresetToken);
+  this.passwordResetToken = encryptedresetToken;
+  this.passwordResetTokenExpiresAt = Date.now() + 10 * 60 * 1000;
+  return resetToken;
 };
 
 userSchema.pre("save", async function (next) {

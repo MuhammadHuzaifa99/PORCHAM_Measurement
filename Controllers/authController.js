@@ -1,6 +1,9 @@
 const User = require("../Module/authModule");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const { promisify } = require("util");
+const bcrypt = require("bcryptjs/dist/bcrypt");
+// const sha256 = require("crypto-js/sha256");
 
 // jwt token generation
 const jwtToken = (userId) => {
@@ -74,10 +77,17 @@ exports.signUp = async (req, res) => {
 // forgot password
 exports.forgotPassword = async (req, res) => {
   try {
-    console.log(req.body.email)
-    var user = await User.findOne({email: req.body.email});
-    console.log(user);
-    // user = user.toObject();
+    var user = await User.findOne({ email: req.body.email });
+    if (!user) {
+      return res.status(404).json({
+        error: "user not found",
+      });
+    }
+
+    var resetToken = await user.passwordResetTokenGenerator();
+    console.log(resetToken);
+    await user.save({ validateBeforeSave: false });
+
     res.status(200).json({
       msg: "success",
       // data: user,
