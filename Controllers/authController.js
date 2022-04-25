@@ -1,12 +1,15 @@
 const User = require("../Module/authModule");
 const jwt = require("jsonwebtoken");
 const { promisify } = require("util");
+
+// jwt token generation
 const jwtToken = (userId) => {
   return jwt.sign({ id: userId }, process.env.JWT_WEB_SECRET, {
     expiresIn: process.env.JWT_EXPIRE_IN,
   });
 };
 
+// login
 exports.login = async (req, res) => {
   try {
     //console.log(req.body);
@@ -45,6 +48,7 @@ exports.login = async (req, res) => {
   }
 };
 
+// signup
 exports.signUp = async (req, res) => {
   try {
     var user = await User.create(req.body);
@@ -67,6 +71,26 @@ exports.signUp = async (req, res) => {
   }
 };
 
+// forgot password
+exports.forgotPassword = async (req, res) => {
+  try {
+    console.log(req.body.email)
+    var user = await User.findOne({email: req.body.email});
+    console.log(user);
+    // user = user.toObject();
+    res.status(200).json({
+      msg: "success",
+      // data: user,
+    });
+  } catch (error) {
+    res.status(404).json({
+      status: "error",
+      error: error.message,
+    });
+  }
+};
+
+// protect
 exports.protect = async (req, res, next) => {
   try {
     // 1- fetch token
