@@ -1,9 +1,9 @@
 const User = require("../Module/authModule");
 const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
 const { promisify } = require("util");
 const bcrypt = require("bcryptjs/dist/bcrypt");
-// const sha256 = require("crypto-js/sha256");
+const crypto = require("crypto");
+const sendEmail = require("../Utility/email");
 
 // jwt token generation
 const jwtToken = (userId) => {
@@ -77,20 +77,80 @@ exports.signUp = async (req, res) => {
 // forgot password
 exports.forgotPassword = async (req, res) => {
   try {
-    var user = await User.findOne({ email: req.body.email });
+    var user = await User.findOne({ email: req.body.email }).select(
+      "+password"
+    );
     if (!user) {
       return res.status(404).json({
         error: "user not found",
       });
     }
 
-    var resetToken = await user.passwordResetTokenGenerator();
-    console.log(resetToken);
-    await user.save({ validateBeforeSave: false });
+    // passworrd reset token generator
+    var resetToken = user.passwordResetTokenGenerator();
+    await user.save({ validateBeforSave: false });
+
+    // send mail
+    const msg = `your reset password link send expire with in 10 mints http://localhost:8000/api/v1/auth/forgotPassword/${resetToken}`;
+    await sendEmail({
+      to: user.email,
+      subject: "Password Reset",
+      content: msg,
+    });
 
     res.status(200).json({
-      msg: "success",
+      msg: "forgot password",
       // data: user,
+    });
+  } catch (error) {
+    user.passwordResetToken = undefined;
+    user.passwordResetTokenExpiresAt = undefined;
+    await user.save({ validateBeforSave: false})
+    res.status(404).json({
+      status: "error",
+      error: error.message,
+    });
+  }
+};
+
+// reset token
+exports.resetPassword = async (req, res) => {
+  try {
+    // fetch token from params
+    const { resetToken } = req.params;
+    var {password, confirmPassword} = req.body
+    // encrypt token
+    const encryptedresetToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+
+    // find user via encrypted token
+    const user = await User.findOne({
+      passwordResetToken: encryptedresetToken,
+      passwordResetTokenExpiresAt: { $gt: Date.now() },
+    });
+    // if user doen not exist
+    if (!user) {
+      res.status(401).json({
+        error: "token does not exist or has been expired",
+      });
+    }
+
+    user.password = password;
+    user.confirmPassword = confirmPassword;
+    user.passwordResetToken = undefined
+
+    await user.save();
+
+    var { password, ...ModifiedUser } = user.toObject();
+    // jwt generation
+    var token = jwtToken(user._id);
+
+    res.status(200).json({
+      status: "restPassword",
+      token,
+      data: ModifiedUser,
     });
   } catch (error) {
     res.status(404).json({
@@ -99,7 +159,6 @@ exports.forgotPassword = async (req, res) => {
     });
   }
 };
-
 // protect
 exports.protect = async (req, res, next) => {
   try {

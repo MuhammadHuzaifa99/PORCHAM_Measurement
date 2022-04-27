@@ -16,14 +16,12 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, "Password must be entered"],
     minlength: 8,
-    maxlength: 16,
+    // maxlength: 16,
     select: false,
   },
   confirmPassword: {
     type: String,
-    required: true,
     minlength: 8,
-    maxlength: 16,
     validate: {
       validator: function (val) {
         return val == this.password;
@@ -39,22 +37,24 @@ userSchema.methods.passwordVerification = async (password, encryptedPass) => {
   return await bcrypt.compare(password, encryptedPass);
 };
 
-userSchema.methods.passwordResetTokenGenerator = async function () {
-  const resetToken = await crypto.randomBytes(32).toString("hex");
-  const encryptedresetToken = await crypto
+userSchema.methods.passwordResetTokenGenerator = function () {
+  // resetToken
+  const resetToken = crypto.randomBytes(32).toString("hex");
+
+  // encryted reset Token
+  const encryptedresetToken = crypto
     .createHash("sha256")
     .update(resetToken)
     .digest("hex");
-  // console.log(resetToken);
-  // console.log(encryptedresetToken);
+
   this.passwordResetToken = encryptedresetToken;
   this.passwordResetTokenExpiresAt = Date.now() + 10 * 60 * 1000;
   return resetToken;
 };
 
 userSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
   var encryptedPass = await bcrypt.hash(this.password, 12);
-  // console.log(encryptedPass);
   this.password = encryptedPass;
   this.confirmPassword = undefined;
   next();
