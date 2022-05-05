@@ -29,6 +29,7 @@ const userSchema = new mongoose.Schema({
       message: "password does not match",
     },
   },
+  passwordChangedAt: Date,
   passwordResetToken: String,
   passwordResetTokenExpiresAt: Date,
 });
@@ -51,6 +52,12 @@ userSchema.methods.passwordResetTokenGenerator = function () {
   this.passwordResetTokenExpiresAt = Date.now() + 10 * 60 * 1000;
   return resetToken;
 };
+
+userSchema.pre("save", function (next) {
+  if (!this.isModified("password") && !this.isNew) return next();
+  this.passwordChangedAt = Date.now() - 1000;
+  next();
+});
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();

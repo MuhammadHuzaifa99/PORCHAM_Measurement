@@ -36,6 +36,11 @@ exports.login = async (req, res) => {
     var { password, ...ModifiedUser } = user.toObject();
     // jwt generation
     var token = jwtToken(user._id);
+    res.cookie("jwt", token, {
+      secure: process.env.NODE_ENV == "development" ? false : true,
+      expires: new Date(Date.now() + process.env.COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000),
+      httpOnly: true
+    })
     // response
     res.status(200).json({
       msg: "login successful",
@@ -129,7 +134,7 @@ exports.resetPassword = async (req, res) => {
     const user = await User.findOne({
       passwordResetToken: encryptedresetToken,
       passwordResetTokenExpiresAt: { $gt: Date.now() },
-    });
+    });N
     // if user doen not exist
     if (!user) {
       res.status(401).json({
